@@ -1,0 +1,25 @@
+
+{
+  "name": "priceproof",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Household essentials price history and unit-cost comparator for India",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "node --watch server/app.js",
+    "seed": "node database/seed.js",
+    "test": "node --test server/services/unit-cost.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0"
+  }
+}

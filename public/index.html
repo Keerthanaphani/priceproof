@@ -1,0 +1,309 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Compare household essentials prices with PriceProof.">
+  <title>PriceProof | Smart Shopping</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="navbar">
+    <a class="logo" href="/">PriceProof<span>.</span></a>
+    <nav>
+  <a href="#dashboard">Dashboard</a>
+  <a href="#products">Products</a>
+  <a href="#comparison">Compare Prices</a>
+  <a href="#shoppingListSection">Shopping List</a>
+  </nav>
+  </header>
+
+  <main class="container" id="dashboard">
+    <section class="hero">
+      <p class="eyebrow">SMARTER EVERYDAY SHOPPING</p>
+      <h1>Know the price.<br><span>Choose the best deal.</span></h1>
+      <p>Compare household essentials across stores and make every rupee count.</p>
+      <a class="primary-button" href="#products">Explore products ↓</a>
+    </section>
+     
+<section id="dashboardSummary" class="dashboard-summary">
+  <h2>Your PriceProof Dashboard</h2>
+  <p>Get a quick overview of your price tracking.</p>
+
+  <div class="dashboard-cards">
+    <article class="dashboard-card">
+      <h3>Products Tracked</h3>
+      <p id="totalProducts">—</p>
+    </article>
+
+    <article class="dashboard-card">
+      <h3>Price Records</h3>
+      <p id="totalPriceRecords">—</p>
+    </article>
+
+    <article class="dashboard-card">
+      <h3>Shrinkflation Alerts</h3>
+      <p id="totalShrinkflationAlerts">—</p>
+    </article>
+  </div>
+
+  <p id="dashboardStatus" role="status" aria-live="polite"></p>
+</section>
+
+    <section class="section" id="products">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">YOUR CATALOG</p>
+          <h2>Household essentials</h2>
+        </div>
+        <button id="refreshBtn" class="secondary-button">↻ Refresh</button>
+      </div>
+      
+    <div class="search-box">
+     <span aria-hidden="true">🔍</span>
+      <input
+       type="search"
+       id="productSearch"
+       placeholder="Search rice, milk, cooking oil..."
+       aria-label="Search products by name or brand"
+      />
+    </div>
+
+    <p id="status" role="status">Loading products...</p>
+      <div id="productGrid" class="product-grid"></div>
+    </section>
+    
+    <section class="section" id="add-price">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CONTRIBUTE A PRICE</p>
+          <h2>Add a store price</h2>
+        </div>
+      </div>
+
+      <form id="addPriceForm" class="price-form">
+      
+      <label for="priceProduct">Product</label>
+      <select id="priceProduct" name="product_id" required>
+      <option value="">Loading products...</option>
+      </select>
+
+      <label for="priceStore">Store</label>
+      <select id="priceStore" name="store_id" required>
+      <option value="">Loading stores...</option>
+      </select>
+
+      <label for="priceAmount">Price (₹)</label>
+        <input
+          type="number"
+          id="priceAmount"
+          name="price"
+          min="0"
+          step="0.01"
+          placeholder="e.g. 180"
+          required
+        >
+
+        <label for="packSize">Pack size</label>
+        <input
+          type="number"
+          id="packSize"
+          name="pack_size"
+          min="0.001"
+          step="any"
+          placeholder="e.g. 1000"
+          required
+        >
+
+        <label for="packUnit">Pack unit</label>
+        <select id="packUnit" name="pack_unit" required>
+          <option value="g">Grams (g)</option>
+          <option value="kg">Kilograms (kg)</option>
+          <option value="ml">Millilitres (ml)</option>
+          <option value="L">Litres (L)</option>
+          <option value="piece">Piece</option>
+          <option value="unit">Unit</option>
+        </select>
+
+        <label for="offerType">Offer type</label>
+        <select id="offerType" name="offer_type" required>
+          <option value="none">No offer</option>
+        </select>
+
+        <label for="offerValue">Offer value</label>
+        <input
+          type="number"
+          id="offerValue"
+          name="offer_value"
+          min="0"
+          step="0.01"
+          value="0"
+          required
+        >
+
+        <label for="priceNotes">Notes (optional)</label>
+        <input
+          type="text"
+          id="priceNotes"
+          name="notes"
+          placeholder="Optional notes"
+        >
+
+        <button type="submit" class="primary-button">
+          Add Price
+        </button>
+
+        <p id="addPriceStatus" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="section comparison-section" id="comparison">
+      <p class="eyebrow">PRICE INTELLIGENCE</p>
+      <h2>Compare store prices</h2>
+      <p>Select a product above to see its latest unit prices.</p>
+      <div id="comparisonResults">
+        <p class="empty-state">Choose a product to compare prices.</p>
+      </div>
+    </section>
+    
+<section id="priceHistorySection" class="price-history-section">
+  <h2>Price History</h2>
+  <p>Track how product prices change over time.</p>
+
+  <div class="history-controls">
+    <label for="historyProduct">Choose a product</label>
+    <select id="historyProduct">
+      <option value="">Select a product</option>
+    </select>
+
+    <button id="loadHistoryBtn" type="button">
+      View History
+    </button>
+  </div>
+
+  <p id="historyStatus" role="status" aria-live="polite"></p>
+   
+<div class="price-chart-container">
+  <h3>Price Trend</h3>
+  <p>See how the recorded price changes over time.</p>
+  <div id="priceChart" class="price-chart">
+    <p>Select a product and click View History to see its price trend.</p>
+  </div>
+</div>
+
+  <div class="table-container">
+    <table id="priceHistoryTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Store</th>
+          <th>Pack Size</th>
+          <th>Price</th>
+          <th>Unit Cost</th>
+        </tr>
+      </thead>
+      <tbody id="priceHistoryBody">
+        <tr>
+          <td colspan="5">Select a product to view its history.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+<div class="shrinkflation-section">
+  <h3>Shrinkflation Detector</h3>
+  <p>
+    Find products whose pack sizes have decreased
+    while their prices stayed the same or increased.
+  </p>
+
+  <button id="checkShrinkflationBtn" type="button">
+    Check for Shrinkflation
+  </button>
+
+  <p id="shrinkflationStatus" role="status" aria-live="polite"></p>
+
+  <div id="shrinkflationResults"></div>
+</div>
+</section>
+   
+<section id="shoppingListSection" class="shopping-section">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">PLAN YOUR SHOPPING</p>
+      <h2>My Shopping List</h2>
+      <p>Organize your household essentials in one place.</p>
+    </div>
+  </div>
+
+  <form id="shoppingForm" class="shopping-form">
+    <div class="form-group">
+      <label for="shoppingName">Item name</label>
+      <input
+        type="text"
+        id="shoppingName"
+        placeholder="e.g. Rice"
+        maxlength="100"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="shoppingQuantity">Quantity</label>
+      <input
+        type="number"
+        id="shoppingQuantity"
+        min="0.01"
+        step="any"
+        placeholder="e.g. 2"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="shoppingUnit">Unit</label>
+      <select id="shoppingUnit" required>
+        <option value="kg">Kilograms (kg)</option>
+        <option value="g">Grams (g)</option>
+        <option value="L">Litres (L)</option>
+        <option value="ml">Millilitres (ml)</option>
+        <option value="pieces">Pieces</option>
+        <option value="pack">Packs</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="shoppingProduct">Linked product (optional)</label>
+      <select id="shoppingProduct">
+        <option value="">No linked product</option>
+      </select>
+    </div>
+
+    <button type="submit" class="primary-button">
+      + Add Item
+    </button>
+  </form>
+
+  <p id="shoppingStatus" role="status" aria-live="polite"></p>
+
+  <div class="shopping-summary">
+    <span>Total items: <strong id="shoppingTotal">0</strong></span>
+    <span>Remaining: <strong id="shoppingRemaining">0</strong></span>
+  </div>
+
+  <div id="shoppingItems" class="shopping-items">
+    <p>Loading shopping list...</p>
+  </div>
+</section>
+
+  </main>
+
+  <footer>
+    <a class="logo" href="/">PriceProof<span>.</span></a>
+    <p>Shop smarter. Spend wiser.</p>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
