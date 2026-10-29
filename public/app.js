@@ -576,7 +576,11 @@ function renderPriceChart(entries) {
   const changePercent = previousPrice !== 0
   ? (change / previousPrice) * 100
   : 0;
-
+  const cheapestEntry = points.length > 0 
+    ? points.reduce((min, p) => Number(p.price) < Number(min.price) ? p : min, points[0]) 
+    : null;
+  const highestPrice = maxPrice;
+  const savings = cheapestEntry ? (highestPrice - Number(cheapestEntry.price)).toFixed(2) : 0;
   const width = Math.max(650, points.length * 100);
   const height = 300;
   const padding = { top: 35, right: 30, bottom: 65, left: 75 };
@@ -690,6 +694,8 @@ function renderPriceChart(entries) {
     ["Latest price", `₹${latestPrice.toFixed(2)}`],
     ["Lowest price", `₹${minPrice.toFixed(2)}`],
     ["Highest price", `₹${maxPrice.toFixed(2)}`],
+    ["Best Store", cheapestEntry && cheapestEntry.store_name ? cheapestEntry.store_name : "N/A"],
+    ["Potential Savings", `₹${savings}`],
     [
       "Change vs previous record",
       `${change > 0 ? "+" : ""}₹${change.toFixed(2)} (${changePercent.toFixed(1)}%)`
@@ -814,11 +820,6 @@ async function loadPriceHistory() {
 }
 
 loadHistoryBtn.addEventListener("click", loadPriceHistory);
-historyStore?.addEventListener("change", () => {
-  if (historyProduct.value) {
-    loadPriceHistory();
-  }
-});
 loadHistoryProducts();
 
 const shrinkBtn = document.getElementById("checkShrinkflationBtn");

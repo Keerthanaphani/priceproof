@@ -659,3 +659,41 @@ a:focus-visible {
   min-width: 600px;
   height: auto;
 }
+/* Price Comparison Improvements */
+.cheapest-store {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #badbcc;
+}
+
+.savings-badge {
+    display: inline-block;
+    background-color: #cfe2ff;
+    color: #084298;
+    font-size: 0.85rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-top: 4px;
+    font-weight: 500;
+}
+.price-chart-stat strong {
+    font-size: 1.1rem;
+}
+
+/* Highlight for Best Store & Savings */
+.price-chart-stat:nth-last-child(3) strong {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.price-chart-stat:nth-last-child(2) strong {
+    color: #084298;
+    background-color: #cfe2ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
