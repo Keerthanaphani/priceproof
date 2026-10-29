@@ -22,20 +22,29 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST a new shopping-list item
+
+ // POST a new shopping-list item
 router.post("/", async (req, res) => {
   try {
-    const { name, quantity, unit, product_id } = req.body;
+    const { name, quantity, unit, product_id, estimated_price } = req.body;
+
+    const price = estimated_price === undefined
+      ? 0
+      : Number(estimated_price);
 
     if (
-      !name ||
+      typeof name !== "string" ||
+      !name.trim() ||
       !Number.isFinite(Number(quantity)) ||
       Number(quantity) <= 0 ||
-      !unit
+      typeof unit !== "string" ||
+      !unit.trim() ||
+      !Number.isFinite(price) ||
+      price < 0
     ) {
       return res.status(400).json({
         success: false,
-        message: "Name, positive quantity, and unit are required."
+        message: "Enter a name, positive quantity, unit, and valid estimated price."
       });
     }
 
@@ -43,6 +52,7 @@ router.post("/", async (req, res) => {
       name: name.trim(),
       quantity: Number(quantity),
       unit: unit.trim(),
+      estimated_price: price,
       purchased: false
     };
 
@@ -75,6 +85,7 @@ router.post("/", async (req, res) => {
     });
   }
 });
+
 
 // PATCH purchased status
 router.patch("/:id", async (req, res) => {

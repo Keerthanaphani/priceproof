@@ -81,6 +81,119 @@ router.get("/compare/:productId", async (req, res) => {
   }
 });
 
+/* LOW-PRICE ALERTS */
+router.get("/alerts/:productId", async (req, res) => {
+  const productId = Number(req.params.productId);
+
+  if (!Number.isSafeInteger(productId) || productId < 1) {
+    return res.status(400).json({
+      error: "A valid product ID is required"
+    });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("price_entries")
+      .select("id, price, effective_unit_price, recorded_on, store_id")
+      .eq("product_id", productId)
+      .order("recorded_on", { ascending: false })
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.error("Price alert error:", error);
+      return res.status(500).json({
+        error: "Could not check price history"
+      });
+    }
+
+    const entries = data || [];
+    const storeHistory = {};
+
+    // Group price records by store.
+    for (const entry of entries) {
+      const storeId = entry.store_id;
+
+      if (storeId == null) continue;
+
+      if (!storeHistory[storeId]) {
+        storeHistory[storeId] = [];
+      }
+
+      // Keep only the two most recent entries per store.
+      if (storeHistory[storeId].length < 2) {
+        storeHistory[storeId].push(entry);
+      }
+    }
+    
+const storeIds = Object.keys(storeHistory).map(Number);
+
+let storeNames = {};
+
+if (storeIds.length > 0) {
+  const { data: stores, error: storesError } = await supabase
+    .from("stores")
+    .select("id, name")
+    .in("id", storeIds);
+
+  if (storesError) {
+    console.error("Could not load store names:", storesError);
+  } else {
+    storeNames = Object.fromEntries(
+    (stores || []).map(store => [Number(store.id), store.name])
+    );
+  }
+}
+
+    const alerts = [];
+
+    for (const [storeId, history] of Object.entries(storeHistory)) {
+      if (history.length < 2) continue;
+
+      const latest = Number(history[0].effective_unit_price);
+      const previous = Number(history[1].effective_unit_price);
+
+      if (
+        !Number.isFinite(latest) ||
+        !Number.isFinite(previous)
+      ) {
+        continue;
+      }
+
+      const dropped = latest < previous;
+
+      alerts.push({
+        storeId: Number(storeId),
+        storeName: storeNames[Number(storeId)] || `Store ${storeId}`,
+        alert: dropped,
+        latestPrice: latest,
+        previousPrice: previous,
+        savings: Number((previous - latest).toFixed(2)),
+        latestRecordedOn: history[0].recorded_on,
+        previousRecordedOn: history[1].recorded_on,
+        message: dropped
+          ? "Price drop detected at this store!"
+          : "No price drop detected at this store."
+      });
+    }
+
+    return res.json({
+      data: {
+        alert: alerts.some(item => item.alert),
+        alerts,
+        message: alerts.length === 0
+          ? "Record at least two prices at the same store to detect a price drop."
+          : alerts.some(item => item.alert)
+            ? "A price drop was detected at one or more stores."
+            : "No price drops detected at the stores checked."
+      }
+    });
+  } catch (error) {
+    console.error("Price alert error:", error);
+    return res.status(500).json({
+      error: "Server error while checking price alerts"
+    });
+  }
+});
 
  // Add a new store price
 router.post("/", async (req, res) => {

@@ -212,7 +212,7 @@ async function comparePrices(productId, productName) {
     }
 
     comparisonResults.appendChild(list);
-  
+    loadLowPriceAlert(productId);
 } catch (error) {
   console.error("PriceProof comparison error:", error);
 
@@ -221,12 +221,77 @@ async function comparePrices(productId, productName) {
   message.textContent = `Comparison failed: ${error.message}`;
 
   comparisonResults.appendChild(message);
+ }
 }
 
+async function loadLowPriceAlert(productId) {
+  const alertElement = document.getElementById("lowPriceAlert");
+
+  if (!alertElement) return;
+
+  alertElement.textContent = "Checking prices at each store...";
+  alertElement.className = "low-price-alert";
+
+  try {
+    const response = await fetch(`/api/prices/alerts/${productId}`);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Could not check price history.");
+    }
+
+    const data = result.data;
+
+    alertElement.replaceChildren();
+
+    const heading = document.createElement("h3");
+    heading.textContent = "🔔 Low-Price Alerts";
+    alertElement.appendChild(heading);
+
+    if (!data || !data.alerts || data.alerts.length === 0) {
+      const message = document.createElement("p");
+      message.textContent =
+        data?.message ||
+        "Record at least two prices at the same store to detect a price drop.";
+
+      alertElement.appendChild(message);
+      return;
+    }
+
+    const summary = document.createElement("p");
+    summary.textContent = data.message;
+    alertElement.appendChild(summary);
+
+    data.alerts.forEach((item) => {
+      const storeAlert = document.createElement("div");
+      storeAlert.className = item.alert
+        ? "store-price-alert price-drop"
+        : "store-price-alert";
+
+      const storeTitle = document.createElement("h4");
+      storeTitle.textContent = item.storeName || `Store ${item.storeId}`;
+      const details = document.createElement("p");
+      details.textContent =
+        `Previous: ₹${Number(item.previousPrice).toFixed(2)} | ` +
+        `Latest: ₹${Number(item.latestPrice).toFixed(2)} per unit`;
+
+      const status = document.createElement("p");
+      status.textContent = item.alert
+        ? `✅ Price dropped by ₹${Number(item.savings).toFixed(2)} per unit!`
+        : `No price drop detected at this store.`;
+
+      storeAlert.append(storeTitle, details, status);
+      alertElement.appendChild(storeAlert);
+    });
+  } catch (error) {
+    console.error("Low-price alert failed:", error);
+    alertElement.textContent =
+      "Unable to check price alerts right now. Please try again.";
+    alertElement.className = "low-price-alert";
+  }
 }
 
 refreshBtn.addEventListener("click", loadProducts);
-
 loadProducts();
 
 
@@ -280,7 +345,7 @@ function searchProducts() {
     );
 
     meta.append(unit, button);
-    card.append(image, name, brand, meta);
+    card.append(name, brand, meta);
     productGrid.appendChild(card);
   });
 }
@@ -419,6 +484,38 @@ const historyProduct = document.getElementById("historyProduct");
 const loadHistoryBtn = document.getElementById("loadHistoryBtn");
 const historyStatus = document.getElementById("historyStatus");
 const priceHistoryBody = document.getElementById("priceHistoryBody");
+const historyStore = document.getElementById("historyStore");
+
+async function loadHistoryStores() {
+  if (!historyStore) return;
+
+  try {
+    const response = await fetch("/api/stores");
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Could not load stores.");
+    }
+
+    historyStore.replaceChildren();
+
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = "All stores";
+    historyStore.appendChild(allOption);
+
+    (result.data || []).forEach((store) => {
+      const option = document.createElement("option");
+      option.value = String(store.id);
+      option.textContent = store.name;
+      historyStore.appendChild(option);
+    });
+  } catch (error) {
+    console.error("Loading history stores failed:", error);
+  }
+}
+
+loadHistoryStores();
 
 async function loadHistoryProducts() {
   try {
@@ -447,33 +544,47 @@ async function loadHistoryProducts() {
 function renderPriceChart(entries) {
   const chart = document.getElementById("priceChart");
 
-  if (!entries.length) {
-    chart.innerHTML =
-      '<p class="chart-empty">No price records available to chart.</p>';
-    return;
-  }
+  if (!chart) return;
 
-  // Show prices in chronological order, oldest first.
   const points = [...entries]
-    .filter((entry) => Number.isFinite(Number(entry.price)))
+    .filter((entry) =>
+      Number.isFinite(Number(entry.price)) &&
+      entry.recorded_on
+    )
     .sort((a, b) =>
       String(a.recorded_on).localeCompare(String(b.recorded_on))
     );
 
-  if (!points.length) {
-    chart.innerHTML =
-      '<p class="chart-empty">No valid price records available.</p>';
+  if (points.length === 0) {
+    chart.replaceChildren();
+
+    const message = document.createElement("p");
+    message.className = "chart-empty";
+    message.textContent = "No price records available to chart.";
+    chart.appendChild(message);
     return;
   }
 
-  const width = Math.max(600, points.length * 90);
-  const height = 260;
-  const padding = { top: 25, right: 25, bottom: 55, left: 65 };
-
   const prices = points.map((point) => Number(point.price));
+  const previousPrice = prices.length > 1
+  ? prices[prices.length - 2]
+  : prices[0];
+  const latestPrice = prices[prices.length - 1];
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
-  const range = maxPrice - minPrice || 1;
+  const change = latestPrice - previousPrice;
+  const changePercent = previousPrice !== 0
+  ? (change / previousPrice) * 100
+  : 0;
+
+  const width = Math.max(650, points.length * 100);
+  const height = 300;
+  const padding = { top: 35, right: 30, bottom: 65, left: 75 };
+
+  const range = maxPrice - minPrice || Math.max(maxPrice * 0.1, 1);
+  const chartMin = Math.max(0, minPrice - range * 0.15);
+  const chartMax = maxPrice + range * 0.15;
+  const chartRange = chartMax - chartMin || 1;
 
   const x = (index) =>
     padding.left +
@@ -482,49 +593,135 @@ function renderPriceChart(entries) {
 
   const y = (price) =>
     padding.top +
-    ((maxPrice - price) / range) *
+    ((chartMax - price) / chartRange) *
       (height - padding.top - padding.bottom);
 
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Product price trend over time");
+
+  function addSvgElement(tag, attributes, textContent) {
+    const element = document.createElementNS(svgNS, tag);
+
+    Object.entries(attributes).forEach(([key, value]) => {
+      element.setAttribute(key, String(value));
+    });
+
+    if (textContent !== undefined) {
+      element.textContent = textContent;
+    }
+
+    svg.appendChild(element);
+    return element;
+  }
+
+  // Horizontal grid lines and price labels.
+  for (let i = 0; i <= 4; i++) {
+    const price = chartMin + (chartRange * i) / 4;
+    const position = y(price);
+
+    addSvgElement("line", {
+      x1: padding.left,
+      y1: position,
+      x2: width - padding.right,
+      y2: position,
+      stroke: "#dbe3ef",
+      "stroke-dasharray": "5 5"
+    });
+
+    addSvgElement("text", {
+      x: padding.left - 12,
+      y: position + 4,
+      "text-anchor": "end",
+      "font-size": 12,
+      fill: "#64748b"
+    }, `₹${price.toFixed(0)}`);
+  }
+
+  // Price trend line.
   const linePoints = points
     .map((point, index) => `${x(index)},${y(Number(point.price))}`)
     .join(" ");
 
-  const gridLines = Array.from({ length: 5 }, (_, index) => {
-    const price = minPrice + (range * index) / 4;
-    const position = y(price);
+  addSvgElement("polyline", {
+    points: linePoints,
+    fill: "none",
+    stroke: "#2563eb",
+    "stroke-width": 3,
+    "stroke-linejoin": "round",
+    "stroke-linecap": "round"
+  });
 
-    return `
-      <line x1="${padding.left}" y1="${position}"
-        x2="${width - padding.right}" y2="${position}"
-        stroke="#e5e7eb" stroke-dasharray="4 4" />
-      <text x="${padding.left - 10}" y="${position + 4}"
-        text-anchor="end" font-size="11" fill="#64748b">
-        ₹${price.toFixed(0)}
-      </text>
-    `;
-  }).join("");
+  // Data points and dates.
+  points.forEach((point, index) => {
+    const price = Number(point.price);
+    const date = String(point.recorded_on).slice(5, 10);
 
-  const dots = points.map((point, index) => `
-    <circle cx="${x(index)}" cy="${y(Number(point.price))}"
-      r="5" fill="#2563eb">
-      <title>${point.recorded_on}: ₹${Number(point.price).toFixed(2)}</title>
-    </circle>
-    <text x="${x(index)}" y="${height - 25}"
-      text-anchor="middle" font-size="11" fill="#64748b">
-      ${String(point.recorded_on || "").slice(0, 10)}
-    </text>
-  `).join("");
+    const dot = addSvgElement("circle", {
+      cx: x(index),
+      cy: y(price),
+      r: 5,
+      fill: "#2563eb",
+      stroke: "#ffffff",
+      "stroke-width": 2
+    });
 
-  chart.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}"
-      role="img" aria-label="Product price trend chart">
-      ${gridLines}
-      <polyline points="${linePoints}" fill="none"
-        stroke="#2563eb" stroke-width="3"
-        stroke-linejoin="round" stroke-linecap="round" />
-      ${dots}
-    </svg>
-  `;
+    const tooltip = document.createElementNS(svgNS, "title");
+    tooltip.textContent = `${date}: ₹${price.toFixed(2)}`;
+    dot.appendChild(tooltip);
+
+    addSvgElement("text", {
+      x: x(index),
+      y: height - 30,
+      "text-anchor": "middle",
+      "font-size": 11,
+      fill: "#64748b"
+    }, `${date} #${index + 1}`);
+  });
+
+  // Summary cards above the chart.
+  const summary = document.createElement("div");
+  summary.className = "price-chart-summary";
+
+  const stats = [
+    ["Latest price", `₹${latestPrice.toFixed(2)}`],
+    ["Lowest price", `₹${minPrice.toFixed(2)}`],
+    ["Highest price", `₹${maxPrice.toFixed(2)}`],
+    [
+      "Change vs previous record",
+      `${change > 0 ? "+" : ""}₹${change.toFixed(2)} (${changePercent.toFixed(1)}%)`
+    ]
+  ];
+
+  stats.forEach(([label, value]) => {
+    const card = document.createElement("div");
+    card.className = "price-chart-stat";
+
+    const heading = document.createElement("span");
+    heading.textContent = label;
+
+    const amount = document.createElement("strong");
+    amount.textContent = value;
+
+    if (label === "Change vs previous record") {
+      amount.classList.add(
+        change > 0 ? "price-increased" :
+        change < 0 ? "price-decreased" : "price-unchanged"
+      );
+    }
+
+    card.append(heading, amount);
+    summary.appendChild(card);
+  });
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "price-chart-scroll";
+  wrapper.appendChild(svg);
+
+  chart.replaceChildren(summary, wrapper);
 }
 
 async function loadPriceHistory() {
@@ -551,7 +748,14 @@ async function loadPriceHistory() {
       );
     }
 
-    const entries = result.data || [];
+    const allEntries = result.data || [];
+    const selectedStoreId = historyStore?.value || "all";
+    const entries = selectedStoreId === "all"
+    ? allEntries
+    : allEntries.filter(
+      (entry) => String(entry.store_id) === selectedStoreId
+    );
+
     renderPriceChart(entries);
     if (entries.length === 0) {
       historyStatus.textContent =
@@ -610,6 +814,11 @@ async function loadPriceHistory() {
 }
 
 loadHistoryBtn.addEventListener("click", loadPriceHistory);
+historyStore?.addEventListener("change", () => {
+  if (historyProduct.value) {
+    loadPriceHistory();
+  }
+});
 loadHistoryProducts();
 
 const shrinkBtn = document.getElementById("checkShrinkflationBtn");
@@ -759,3 +968,339 @@ async function loadDashboardSummary() {
 }
 
 loadDashboardSummary();
+
+/* =========================
+   SHOPPING LIST
+========================= */
+
+const shoppingForm = document.getElementById("shoppingForm");
+const shoppingName = document.getElementById("shoppingName");
+const shoppingQuantity = document.getElementById("shoppingQuantity");
+const shoppingUnit = document.getElementById("shoppingUnit");
+const shoppingEstimatedPrice = document.getElementById("shoppingEstimatedPrice");
+const shoppingProduct = document.getElementById("shoppingProduct");
+const shoppingStatus = document.getElementById("shoppingStatus");
+const shoppingTotal = document.getElementById("shoppingTotal");
+const shoppingRemaining = document.getElementById("shoppingRemaining");
+const shoppingItems = document.getElementById("shoppingItems");
+
+let shoppingListData = [];
+
+async function loadShoppingList() {
+  try {
+    shoppingStatus.textContent = "Loading shopping list...";
+
+    const response = await fetch("/api/shopping");
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Unable to load shopping list.");
+    }
+
+    shoppingListData = result.data || [];
+    renderShoppingList();
+  } catch (error) {
+    shoppingStatus.textContent = "Could not load shopping list: " + error.message;
+  }
+}
+
+function renderShoppingList() {
+  shoppingItems.replaceChildren();
+
+  shoppingTotal.textContent = shoppingListData.length;
+  shoppingRemaining.textContent = shoppingListData.filter(
+    item => !item.purchased
+  ).length;
+
+  if (shoppingListData.length === 0) {
+    shoppingStatus.textContent = "Your shopping list is empty. Add your first item!";
+    updateShoppingBudget();
+    return;
+  }
+
+  shoppingStatus.textContent = "";
+
+  shoppingListData.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "shopping-item";
+
+    const info = document.createElement("div");
+    info.className = "shopping-item-info";
+
+    const name = document.createElement("strong");
+    name.textContent = item.name;
+
+    const details = document.createElement("span");
+    details.textContent = `Quantity: ${item.quantity} ${item.unit}`;
+
+    info.append(name, document.createElement("br"), details);
+
+    const actions = document.createElement("div");
+    actions.className = "shopping-item-actions";
+
+    const purchasedLabel = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(item.purchased);
+    checkbox.addEventListener("change", () => {
+      updateShoppingItem(item.id, checkbox.checked);
+    });
+
+    purchasedLabel.append(checkbox, document.createTextNode(" Purchased"));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-shopping-item";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", () => {
+      deleteShoppingItem(item.id);
+    });
+
+    actions.append(purchasedLabel, deleteButton);
+    row.append(info, actions);
+    shoppingItems.appendChild(row);
+    });
+
+    // Update the shopping budget after rendering the list
+    updateShoppingBudget();
+    }
+
+async function updateShoppingItem(id, purchased) {
+  try {
+    const response = await fetch(`/api/shopping/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ purchased })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Update failed.");
+    }
+
+    await loadShoppingList();
+  } catch (error) {
+    shoppingStatus.textContent = error.message;
+    await loadShoppingList();
+  }
+}
+
+async function deleteShoppingItem(id) {
+  try {
+    const response = await fetch(`/api/shopping/${id}`, {
+      method: "DELETE"
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Delete failed.");
+    }
+
+    await loadShoppingList();
+  } catch (error) {
+    shoppingStatus.textContent = error.message;
+  }
+}
+
+shoppingForm.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const name = shoppingName.value.trim();
+  const quantity = Number(shoppingQuantity.value);
+  const unit = shoppingUnit.value;
+  const productId = shoppingProduct.value;
+  const estimatedPrice = Number(shoppingEstimatedPrice.value);
+  if (
+  !name ||
+  !Number.isFinite(quantity) ||
+  quantity <= 0 ||
+  !unit ||
+  !Number.isFinite(estimatedPrice) ||
+  estimatedPrice < 0
+  ) {
+  shoppingStatus.textContent =
+    "Enter an item name, valid quantity, unit, and non-negative estimated price.";
+  return;
+  }
+
+  const item = { name, quantity, unit, estimated_price: estimatedPrice };
+
+  if (productId) {
+    item.product_id = Number(productId);
+  }
+
+  try {
+    shoppingStatus.textContent = "Adding item...";
+
+    const response = await fetch("/api/shopping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Could not add item.");
+    }
+
+    shoppingForm.reset();
+    await loadShoppingList();
+    shoppingStatus.textContent = "Item added successfully!";
+  } catch (error) {
+    shoppingStatus.textContent = error.message;
+  }
+});
+
+loadShoppingList();
+
+/* SHOPPING BUDGET TRACKER */
+
+// Connect JavaScript to the HTML elements
+const shoppingBudgetInput = document.getElementById("shoppingBudget");
+const estimatedShoppingCost = document.getElementById("estimatedShoppingCost");
+const budgetRemaining = document.getElementById("budgetRemaining");
+const budgetStatus = document.getElementById("budgetStatus");
+
+// Calculate the total cost and remaining budget
+function updateShoppingBudget() {
+  if (
+    !shoppingBudgetInput ||
+    !estimatedShoppingCost ||
+    !budgetRemaining ||
+    !budgetStatus
+  ) return;
+
+  const budgetText = shoppingBudgetInput.value;
+  const budget = Number(budgetText);
+
+  // Add up estimated prices of all shopping items
+  const totalCost = shoppingListData.reduce((total, item) => {
+  const quantity = Number(item.quantity) || 0;
+  const estimatedPrice = Number(item.estimated_price) || 0;
+
+  return total + quantity * estimatedPrice;
+  }, 0);
+
+  // Display the estimated total
+  estimatedShoppingCost.textContent = totalCost.toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR"
+  });
+
+  // Validate the budget
+  if (
+    budgetText.trim() === "" ||
+    !Number.isFinite(budget) ||
+    budget < 0
+  ) {
+    budgetRemaining.textContent = "—";
+    budgetStatus.textContent = "Enter a valid non-negative budget.";
+    return;
+  }
+
+  // Calculate the remaining budget
+  const remaining = budget - totalCost;
+  const budgetProgressBar = document.getElementById("budgetProgressBar");
+  const budgetProgressText = document.getElementById("budgetProgressText");
+
+  const percentage = budget > 0
+  ? (totalCost / budget) * 100
+  : (totalCost > 0 ? 100 : 0);
+
+  if (budgetProgressBar && budgetProgressText) {
+  budgetProgressBar.style.width = `${Math.min(percentage, 100)}%`;
+  budgetProgressText.textContent = `${percentage.toFixed(1)}% of budget used`;
+
+  budgetProgressBar.style.backgroundColor =
+    percentage > 100 ? "#dc2626" :
+    percentage >= 80 ? "#f59e0b" :
+    "#16a34a";
+  }
+  budgetRemaining.textContent = remaining.toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR"
+  });
+
+  // Display the budget status
+  if (remaining < 0) {
+    budgetStatus.textContent =
+      `Over budget by ₹${Math.abs(remaining).toFixed(2)}.`;
+  } else {
+    budgetStatus.textContent =
+      `You have ₹${remaining.toFixed(2)} left in your budget.`;
+  }
+}
+
+// Recalculate when the user changes the budget
+if (shoppingBudgetInput) {
+  shoppingBudgetInput.addEventListener("input", updateShoppingBudget);
+}
+
+// Calculate once when the page loads
+updateShoppingBudget();
+
+// Load the saved budget from Supabase through the API
+async function loadShoppingBudget() {
+  try {
+    const response = await fetch("/api/budget");
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to load budget");
+    }
+
+    shoppingBudgetInput.value = result.data.monthly_budget;
+    updateShoppingBudget();
+  } catch (error) {
+    console.error("Error loading budget:", error);
+  }
+}
+
+// Save the budget to Supabase through the API
+  async function saveShoppingBudget() {
+  const budgetSaveStatus = document.getElementById("budgetSaveStatus");
+
+  try {
+    if (budgetSaveStatus) {
+      budgetSaveStatus.textContent = "Saving budget...";
+    }
+
+    const response = await fetch("/api/budget", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        monthly_budget: shoppingBudgetInput.value
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "Failed to save budget");
+    }
+
+    if (budgetSaveStatus) {
+      budgetSaveStatus.textContent = "Budget saved successfully!";
+    }
+  } catch (error) {
+    console.error("Error saving budget:", error);
+
+    if (budgetSaveStatus) {
+      budgetSaveStatus.textContent =
+        "Could not save budget. Please try again.";
+    }
+  }
+}
+
+// Save when the user finishes changing the budget
+if (shoppingBudgetInput) {
+  shoppingBudgetInput.addEventListener("change", saveShoppingBudget);
+}
+
+// Load the saved budget when the page opens
+loadShoppingBudget();

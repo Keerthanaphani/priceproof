@@ -9,6 +9,7 @@ const productsRouter = require("./routes/products");
 const pricesRouter = require("./routes/prices");
 const storesRouter = require("./routes/stores");
 const shoppingRouter = require("./routes/shopping");
+const budgetRoutes = require("./routes/budget");
 const app = express();
 
 app.use(
@@ -33,7 +34,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/prices", pricesRouter);
 app.use("/api/stores", storesRouter);
 app.use("/api/shopping", shoppingRouter);
-
+app.use("/api/budget", budgetRoutes);
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({

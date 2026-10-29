@@ -161,6 +161,9 @@
     <section class="section comparison-section" id="comparison">
       <p class="eyebrow">PRICE INTELLIGENCE</p>
       <h2>Compare store prices</h2>
+      <div id="lowPriceAlert" class="low-price-alert" role="status" aria-live="polite">
+       Select a product to check for price drops.
+      </div>
       <p>Select a product above to see its latest unit prices.</p>
       <div id="comparisonResults">
         <p class="empty-state">Choose a product to compare prices.</p>
@@ -172,17 +175,22 @@
   <p>Track how product prices change over time.</p>
 
   <div class="history-controls">
-    <label for="historyProduct">Choose a product</label>
-    <select id="historyProduct">
-      <option value="">Select a product</option>
-    </select>
+  <label for="historyProduct">Choose a product</label>
+  <select id="historyProduct">
+    <option value="">Select a product</option>
+  </select>
 
-    <button id="loadHistoryBtn" type="button">
-      View History
-    </button>
-  </div>
+  <label for="historyStore">Filter by store</label>
+  <select id="historyStore">
+    <option value="all">All stores</option>
+  </select>
 
-  <p id="historyStatus" role="status" aria-live="polite"></p>
+  <button id="loadHistoryBtn" type="button">
+    View History
+  </button>
+ </div>
+
+ <p id="historyStatus" role="status" aria-live="polite"></p>
    
 <div class="price-chart-container">
   <h3>Price Trend</h3>
@@ -279,6 +287,19 @@
         <option value="">No linked product</option>
       </select>
     </div>
+    
+   <div class="form-group">
+      <label for="shoppingEstimatedPrice">Estimated Price (₹)</label>
+        <input
+        type="number"
+        id="shoppingEstimatedPrice"
+        min="0"
+        step="0.01"
+        value="0"
+        placeholder="Enter estimated price"
+        required
+     >
+    </div>
 
     <button type="submit" class="primary-button">
       + Add Item
@@ -291,6 +312,45 @@
     <span>Total items: <strong id="shoppingTotal">0</strong></span>
     <span>Remaining: <strong id="shoppingRemaining">0</strong></span>
   </div>
+   
+<div class="budget-tracker">
+  <h3>Shopping Budget</h3>
+
+  <div class="form-group">
+    <label for="shoppingBudget">Your budget (₹)</label>
+    <input
+      type="number"
+      id="shoppingBudget"
+      min="0"
+      step="0.01"
+      value="2000"
+      placeholder="Enter your budget"
+    >
+    <p id="budgetSaveStatus" role="status" aria-live="polite"></p>
+  </div>
+
+  <div class="budget-summary">
+    <p>
+      Estimated cost:
+      <strong id="estimatedShoppingCost">₹0.00</strong>
+    </p>
+    <p>
+      Budget remaining:
+      <strong id="budgetRemaining">₹2,000.00</strong>
+    </p>
+    <p id="budgetStatus" role="status">
+      Enter prices to calculate your spending.
+    </p>
+    
+    <div class="budget-progress-container">
+    <div class="budget-progress-track">
+    <div id="budgetProgressBar" class="budget-progress-bar"></div>
+    </div>
+    <p id="budgetProgressText">0% of budget used</p>
+</div>
+
+  </div>
+</div>
 
   <div id="shoppingItems" class="shopping-items">
     <p>Loading shopping list...</p>
